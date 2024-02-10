@@ -49,7 +49,17 @@ function getAccountData($account_id, $pdo)
 
     // Fetch transaction details with labels
     $transactionData = $transactionStmt->fetchAll(PDO::FETCH_ASSOC);
-    $accountData["transactionData"] = $transactionData;
+    $finalTransactions = [];
+    foreach ($transactionData as $transaction) {
+        $labelsArray = explode(',', $transaction['labels']);
+        // Remove empty elements
+        $labelsArray = array_filter($labelsArray);
+
+        // Add the labels array to the row
+        $transaction['labels'] = $labelsArray;
+        $finalTransactions[] = $transaction;
+    }
+    $accountData["transactionData"] = $finalTransactions;
     return $accountData;
 }
 
@@ -79,6 +89,7 @@ try {
         echo json_encode($result, JSON_PRETTY_PRINT);
     } else {
         // Authentication failed
+        header('HTTP/1.0 401 Unauthorized');
         echo "Error: Authentication failed. Please check your credentials.";
     }
 } catch (PDOException $e) {

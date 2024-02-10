@@ -34,7 +34,7 @@ function importCSVData($csvFilePath, $account_id, $pdo) {
     if (($handle = fopen($csvFilePath, "r")) !== false) {
         while (($data = fgetcsv($handle, 1000, ",")) !== false) {
             // Assuming the CSV columns are in the same order as in the database table
-            $stmt->execute([$data[0], $data[1], $data[2], $data[3], $data[4], $data[5], $data[6], $account_id]);
+            $stmt->execute([date('Y-m-d', strtotime($data[0])), $data[1], $data[2], $data[3], $data[4], $data[5], $data[6], $account_id]);
         }
         fclose($handle);
         
