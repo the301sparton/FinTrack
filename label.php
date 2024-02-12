@@ -35,6 +35,19 @@ function deleteLabelEntry($label_id, $transaction_id, $pdo)
     }
 }
 
+function insertLabelEntry($label_id, $transaction_id, $pdo)
+{
+    try {
+        // Prepare SQL statement to insert entry
+        $stmt = $pdo->prepare("INSERT INTO labelDetails (transaction_id, label_id) VALUES (:transaction_id, :label_id)");
+        $stmt->execute(array(':transaction_id' => $transaction_id, ':label_id' => $label_id));
+        return true;
+    } catch (PDOException $e) {
+        // If an error occurs during insertion, handle it here
+        return false;
+    }
+}
+
 $provided_account_id = $_SERVER['PHP_AUTH_USER'];
 $provided_password = $_SERVER['PHP_AUTH_PW'];
 
@@ -46,12 +59,11 @@ try {
     // Authenticate the user
     if (authenticateUser($provided_account_id, $provided_password, $pdo)) {
         $type = $_POST['type'];
-        if ($type == "deleteLabelIdForTransactionId") {
-            // Get label_id and transaction_id from request (replace with your actual method of obtaining these values)
-            $label_id = $_POST['label_id'] ?? null;
-            $transaction_id = $_POST['transaction_id'] ?? null;
+        $label_id = $_POST['label_id'] ?? null;
+        $transaction_id = $_POST['transaction_id'] ?? null;
 
-            if ($label_id && $transaction_id) {
+        if ($label_id && $transaction_id) {
+            if ($type == "deleteLabelForTransaction") {
                 // Delete label entry
                 $success = deleteLabelEntry($label_id, $transaction_id, $pdo);
 
@@ -62,10 +74,21 @@ try {
                     $result['success'] = false;
                     $result["message"] = "Failed to delete entry.";
                 }
-            } else {
-                $result['success'] = false;
-                $result["message"] = "Both label_id and transaction_id are required.";
+            } else if ($type == "addLabelToTransaction") {
+                // Insert label entry
+                $success = insertLabelEntry($label_id, $transaction_id, $pdo);
+
+                if ($success) {
+                    $result['success'] = true;
+                    $result["message"] = "Entry created successfully.";
+                } else {
+                    $result['success'] = false;
+                    $result["message"] = "Failed to created entry.";
+                }
             }
+        } else {
+            $result['success'] = false;
+            $result["message"] = "Both label_id and transaction_id are required.";
         }
         // Output JSON response
         header('Content-Type: application/json');
