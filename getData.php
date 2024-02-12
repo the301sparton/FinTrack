@@ -24,43 +24,47 @@ function authenticateUser($account_id, $password, $pdo)
 }
 
 // Function to retrieve account data and transaction details with labels
-function getAccountData($account_id, $pdo)
-{
-    // You need to replace 'your_db_table' with your actual table name
-    $accountQuery = "SELECT * FROM accountDetails WHERE account_id = :account_id";
-    $transactionQuery = "SELECT t.*, GROUP_CONCAT(lt.label_name) AS labels
-                        FROM transactionDetails t
-                        LEFT JOIN labelDetails ld ON t.transaction_id = ld.transaction_id
-                        LEFT JOIN labelType lt ON ld.label_id = lt.label_id
-                        WHERE t.account_id = :account_id
-                        GROUP BY t.transaction_id";
+function getAccountData($account_id, $pdo) {
+    $result = array();
 
-    // Use prepared statements to prevent SQL injection
-    $accountStmt = $pdo->prepare($accountQuery);
-    $accountStmt->bindParam(':account_id', $account_id, PDO::PARAM_INT);
-    $accountStmt->execute();
+    // Retrieve account details
+    $query = "SELECT * FROM accountDetails WHERE account_id = :account_id";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute(array(':account_id' => $account_id));
+    $account_row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    $transactionStmt = $pdo->prepare($transactionQuery);
-    $transactionStmt->bindParam(':account_id', $account_id, PDO::PARAM_INT);
-    $transactionStmt->execute();
+    if ($account_row) {
+        // Add account details to the result array
+        $result = $account_row;
 
-    // Fetch account data
-    $accountData = $accountStmt->fetch(PDO::FETCH_ASSOC);
+        // Retrieve transactions for the account
+        $query = "SELECT * FROM transactionDetails WHERE account_id = :account_id";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute(array(':account_id' => $account_id));
+        $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Fetch transaction details with labels
-    $transactionData = $transactionStmt->fetchAll(PDO::FETCH_ASSOC);
-    $finalTransactions = [];
-    foreach ($transactionData as $transaction) {
-        $labelsArray = explode(',', $transaction['labels']);
-        // Remove empty elements
-        $labelsArray = array_filter($labelsArray);
+        if ($transactions) {
+            foreach ($transactions as &$transaction) {
+                $transaction_id = $transaction['transaction_id'];
 
-        // Add the labels array to the row
-        $transaction['labels'] = $labelsArray;
-        $finalTransactions[] = $transaction;
+                // Retrieve labels for each transaction
+                $labels_query = "SELECT labelType.label_id, label_name, label_color 
+                                FROM labelDetails 
+                                JOIN labelType ON labelDetails.label_id = labelType.label_id 
+                                WHERE transaction_id = :transaction_id";
+                $stmt = $pdo->prepare($labels_query);
+                $stmt->execute(array(':transaction_id' => $transaction_id));
+                $labels = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                $transaction['labels'] = $labels;
+            }
+
+            // Add transactions to the result array
+            $result['transactions'] = $transactions;
+        }
     }
-    $accountData["transactionData"] = $finalTransactions;
-    return $accountData;
+
+    return $result;
 }
 
 // Check if Basic Authentication credentials are provided
@@ -95,5 +99,3 @@ try {
 } catch (PDOException $e) {
     echo "Connection failed: " . $e->getMessage();
 }
-
-?>
