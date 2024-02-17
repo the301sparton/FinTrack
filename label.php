@@ -48,6 +48,18 @@ function insertLabelEntry($label_id, $transaction_id, $pdo)
     }
 }
 
+function getAllLabels($pdo) {
+    try {
+        // Prepare SQL statement to select all labels
+        $stmt = $pdo->query("SELECT * FROM labelType");
+        $labels = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $labels;
+    } catch (PDOException $e) {
+        // If an error occurs, handle it here
+        return false;
+    }
+}
+
 $provided_account_id = $_SERVER['PHP_AUTH_USER'];
 $provided_password = $_SERVER['PHP_AUTH_PW'];
 
@@ -85,7 +97,9 @@ try {
                     $result['success'] = false;
                     $result["message"] = "Failed to created entry.";
                 }
-            }
+            } 
+        } else if ($type == "getAllLabels") {
+            $result = getAllLabels($pdo);
         } else {
             $result['success'] = false;
             $result["message"] = "Both label_id and transaction_id are required.";
